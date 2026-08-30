@@ -281,9 +281,16 @@ function buildall() {
                         // Push text
                         chunks.push(text);
                     },
-                    onclosetag(name) {
-                        // Push close tags
-                        chunks.push(`</${name}>`);
+                    onclosetag(name, isImplied) {
+                        if (!isImplied) {
+                            // Push close tags
+                            chunks.push(`</${name}>`);
+                        }
+                    },
+                    onprocessinginstruction(name, data) {
+                        if (name === '!doctype') {
+                            chunks.push(`<${data}>`);
+                        }
                     }
                 });
                 
