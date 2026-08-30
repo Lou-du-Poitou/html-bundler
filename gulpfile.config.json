@@ -1,0 +1,5 @@
+{
+    "path_source": "src",
+    "path_build": "dist",
+    "dir_assets": "assets"
+}
