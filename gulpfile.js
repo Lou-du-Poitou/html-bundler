@@ -77,8 +77,7 @@ class BuildError extends Error {}
 function buildJS(sourcePath) {
     try {
         const buildPath = path.join(
-            PATH_BUILD,
-            DIR_ASSETS,
+            PATH_ASSETS,
             crypto.randomUUID()
                 .substring(0, 8) + '.min.js'
         );
@@ -106,8 +105,7 @@ function buildJS(sourcePath) {
 function buildCSS(sourcePath) {
     try {
         const buildPath = path.join(
-            PATH_BUILD,
-            DIR_ASSETS,
+            PATH_ASSETS,
             crypto.randomUUID()
                 .substring(0, 8) + '.min.css'
         );
@@ -138,8 +136,7 @@ function buildImg(sourcePath) {
             .at(-1);
     
         const buildPath = path.join(
-            PATH_BUILD,
-            DIR_ASSETS,
+            PATH_ASSETS,
             crypto.randomUUID()
                 .substring(0, 8) + '.' + imgExt
         );
