@@ -284,7 +284,7 @@ function buildall() {
                     },
                     ontext(text) {
                         // Push text
-                        chunks.push(text);
+                        chunks.push(escape(text));
                     },
                     onclosetag(name, isImplied) {
                         if (!isImplied) {
