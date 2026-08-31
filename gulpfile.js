@@ -197,11 +197,16 @@ function buildall() {
                                 return source;
                             }
 
-                            const sourcePath = path.join(
-                                PATH_SOURCE,
-                                DIR_SOURCE_FILE,
-                                source
-                            );
+                            const sourcePath = path.isAbsolute(source)
+                                ? path.join(
+                                    PATH_SOURCE,
+                                    source
+                                )
+                                : path.join(
+                                    PATH_SOURCE,
+                                    DIR_SOURCE_FILE,
+                                    source
+                                );
 
                             /**
                              * @param {String} buildPath 
