@@ -208,9 +208,12 @@ function buildall() {
                              * @return {String}
                              */
                             const relativePath = function(buildPath) {
-                                return path.relative(
-                                    path.join(PATH_BUILD, DIR_SOURCE_FILE),
-                                    buildPath
+                                return path.join(
+                                    path.sep,
+                                    path.relative(
+                                        PATH_BUILD,
+                                        buildPath
+                                    )
                                 )
                                     .split(path.sep)
                                     .join('/');
