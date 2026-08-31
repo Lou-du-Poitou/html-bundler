@@ -170,7 +170,7 @@ function buildall() {
                 if (!file.isBuffer())
                     throw new Error('only buffer are supported');
 
-                const DIR_SOURCE_FILE = path.relative(
+                const PATH_DIR_SOURCE_FILE = path.relative(
                     PATH_SOURCE,
                     file.dirname
                 ); // Current file directory
@@ -201,7 +201,7 @@ function buildall() {
                                 )
                                 : path.join(
                                     PATH_SOURCE,
-                                    DIR_SOURCE_FILE,
+                                    PATH_DIR_SOURCE_FILE,
                                     source
                                 );
 
