@@ -347,7 +347,7 @@ const Builder = async function() {
             removeComments: true
         }))
         .pipe(buildall())
-    .pipe(dest(PATH_BUILD));
+        .pipe(dest(PATH_BUILD));
 }
 
 /* ------------------------------------------------ */
