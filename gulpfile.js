@@ -29,6 +29,7 @@ const {
 const { 
     createReadStream,
     createWriteStream,
+    existsSync
 } = require('node:fs');
 const fs = require('node:fs/promises');
 
@@ -39,6 +40,7 @@ const esbuild = require('esbuild');
 const php2html = require('gulp-php2html');
 const htmlmin = require('gulp-htmlmin');
 const gulpif = require('gulp-if');
+const plumber = require('gulp-plumber');
 
 // Others
 const del = require('delete');
@@ -52,18 +54,25 @@ const del = require('delete');
 const CONFIG = require('./gulpfile.config.json');
 
 // Paths input/output
-const PATH_SOURCE = CONFIG.path_source ?? 'src';
-const PATH_BUILD = CONFIG.path_build ?? 'dist';
+const defaultSourcePath = 'src';
+const defaultBuildPath = 'dist';
+const defaultAssetsPath = 'assets';
 
-const DIR_ASSETS = CONFIG.dir_assets ?? 'assets';
-
-const PATH_ASSETS = path.join(
-    PATH_BUILD,
-    DIR_ASSETS
-);
+const PATHS = {
+    SOURCE: CONFIG.path_source ?? defaultSourcePath,
+    BUILD: CONFIG.path_build ?? defaultBuildPath,
+    ASSETS: path.join(
+        CONFIG.path_build ?? defaultBuildPath,
+        CONFIG.dir_assets ?? defaultAssetsPath
+    )
+};
 
 /* ------------------------------------------------ */
 
+/**
+ * Custom error for build errors
+ * @extends Error
+ */
 class BuildError extends Error {}
 
 /* ------------------------------------------------ */
@@ -77,7 +86,7 @@ class BuildError extends Error {}
 function buildJS(sourcePath) {
     try {
         const buildPath = path.join(
-            PATH_ASSETS,
+            PATHS.ASSETS,
             crypto.randomUUID()
                 .substring(0, 8) + '.min.js'
         );
@@ -92,7 +101,7 @@ function buildJS(sourcePath) {
 
         return buildPath;
     } catch (err) {
-        throw new BuildError(err);
+        throw new BuildError(err.message);
     }
 }
 
@@ -105,50 +114,50 @@ function buildJS(sourcePath) {
 function buildCSS(sourcePath) {
     try {
         const buildPath = path.join(
-            PATH_ASSETS,
+            PATHS.ASSETS,
             crypto.randomUUID()
                 .substring(0, 8) + '.min.css'
         );
-    
+
         esbuild.build({
             entryPoints: [sourcePath],
             bundle: true,
             minify: true,
             outfile: buildPath,
         });
-    
+
         return buildPath;
     } catch (err) {
-        throw new BuildError(err);
+        throw new BuildError(err.message);
     }
 }
 
 /** 
- * Build image file (that not modify the image)
+ * Build static file (that not modify the file)
  * 
  * @param {String} sourcePath
  * @return {String} buildPath
  */
-function buildImg(sourcePath) {
+function buildFile(sourcePath) {
     try {
-        const imgExt = sourcePath
+        const fileExt = sourcePath
             .split('.')
             .at(-1);
-    
+
         const buildPath = path.join(
-            PATH_ASSETS,
+            PATHS.ASSETS,
             crypto.randomUUID()
-                .substring(0, 8) + '.' + imgExt
+                .substring(0, 8) + '.' + fileExt
         );
-    
+
         const input = createReadStream(sourcePath);
         const output = createWriteStream(buildPath);
-    
+
         input.pipe(output);
-    
+
         return buildPath;
     } catch (err) {
-        throw new BuildError(err);
+        throw new BuildError(err.message);
     }
 }
 
@@ -167,145 +176,159 @@ function buildall() {
     return new Transform({
             objectMode: true,
             transform(file, _, cb) {
-                if (!file.isBuffer())
-                    throw new Error('only buffer are supported');
+                try {
+                    if (!file.isBuffer())
+                        throw new Error('Only buffer are supported');
 
-                const PATH_DIR_SOURCE_FILE = path.relative(
-                    PATH_SOURCE,
-                    file.dirname
-                ); // Current file directory
+                    const DIR_SOURCE_FILE = path.relative(
+                        PATHS.SOURCE,
+                        file.dirname
+                    ); // Current file directory
 
-                const chunks = []; // Save html parts
-                const parser = new Parser({
-                    onopentag(name, attributes) {
+                    const chunks = []; // Save html parts
+                    
+                    /**
+                     * Build an asset and return the relative 
+                     * path from the current file
+                     * 
+                     * @param {Object} attribute 
+                     * @param {Function} builder 
+                     * @returns {String}
+                     */
+                    const buildAsset = function(
+                        source,
+                        builder
+                    ) {
+                        if (source.startsWith('http')) {
+                            return source;
+                        }
+                        
+                        const sourcePath = path.isAbsolute(source)
+                            ? path.join(
+                                PATHS.SOURCE,
+                                source
+                            )
+                            : path.join(
+                                PATHS.SOURCE,
+                                DIR_SOURCE_FILE,
+                                source
+                            );
+
+                        // Not try to build if file not found
+                        if (!existsSync(sourcePath))
+                            throw new BuildError(`File not found: "${sourcePath}"`);
+
                         /**
-                         * Build an asset and return the relative 
-                         * path from the current file
-                         * 
-                         * @param {Object} attribute 
-                         * @param {Function} builder 
-                         * @returns {String}
+                         * @param {String} buildPath 
+                         * @return {String}
                          */
-                        const buildAsset = function(
-                            source,
-                            builder
-                        ) {
-                            if (source.startsWith('http')) {
-                                return source;
+                        const relativePath = function(buildPath) {
+                            return path.join(
+                                path.sep,
+                                path.relative(
+                                    PATHS.BUILD,
+                                    buildPath
+                                )
+                            )
+                                .split(path.sep)
+                                .join('/');
+                        };
+
+                        // Check if the asset is not already built
+                        const builtAsset = builtAssets.get(sourcePath);
+                        if (builtAsset) {
+                            return relativePath(builtAsset);
+                        }
+
+                        const buildPath = builder(sourcePath);
+                        builtAssets.set(
+                            sourcePath,
+                            buildPath
+                        ); // Save
+
+                        return relativePath(buildPath);
+                    };
+                            
+                    const parser = new Parser({
+                        onopentag(name, attributes) {
+                            // Find the assets (scripts, styles, images, icons...)
+                            // And then build the assets (bundle, minify, copy...)
+                            if (name === 'script') {
+                                // Scripts
+                                attributes.src = buildAsset(
+                                    attributes.src,
+                                    buildJS
+                                );
+                            } else if (name === 'link') {
+                                if (attributes.rel === 'stylesheet') {
+                                    // Styles
+                                    attributes.href = buildAsset(
+                                        attributes.href,
+                                        buildCSS
+                                    );
+                                } else if (attributes.rel.includes('icon')) {
+                                    // Icons
+                                    attributes.href = buildAsset(
+                                        attributes.href,
+                                        buildFile
+                                    );
+                                }
+                            } else if (
+                                name === 'img' ||
+                                name === 'source' ||
+                                name === 'video' ||
+                                name === 'audio'
+                            ) {
+                                // Images, videos, audios...
+                                attributes.src = buildAsset(
+                                    attributes.src,
+                                    buildFile
+                                );
                             }
 
-                            const sourcePath = path.isAbsolute(source)
-                                ? path.join(
-                                    PATH_SOURCE,
-                                    source
-                                )
-                                : path.join(
-                                    PATH_SOURCE,
-                                    PATH_DIR_SOURCE_FILE,
-                                    source
-                                );
+                            // Push the HTML element with updated attributes
+                            const attributesHtml = Object.entries(attributes)
+                                .map(([key, value]) => {
+                                    return `${key}="${escape(value)}"`;
+                                })
+                                .join(' ');
 
-                            /**
-                             * @param {String} buildPath 
-                             * @return {String}
-                             */
-                            const relativePath = function(buildPath) {
-                                return path.join(
-                                    path.sep,
-                                    path.relative(
-                                        PATH_BUILD,
-                                        buildPath
-                                    )
-                                )
-                                    .split(path.sep)
-                                    .join('/');
+                            let elementHtml;
+                            if (attributesHtml) {
+                                elementHtml = `<${name} ${attributesHtml}>`
+                            } else {
+                                elementHtml = `<${name}>`
                             };
 
-                            // Check if the asset is not already built
-                            const builtAsset = builtAssets.get(sourcePath);
-                            if (builtAsset) {
-                                return relativePath(builtAsset);
+                            chunks.push(elementHtml);
+                        },
+                        ontext(text) {
+                            // Push text
+                            chunks.push(escape(text));
+                        },
+                        onclosetag(name, isImplied) {
+                            if (!isImplied) {
+                                // Push close tags
+                                chunks.push(`</${name}>`);
                             }
-
-                            const buildPath = builder(sourcePath);
-                            builtAssets.set(
-                                sourcePath,
-                                buildPath
-                            ); // Save
-
-                            return relativePath(buildPath);
-                        };
-
-                        // Find the assets (scripts, styles, images, icons...)
-                        // And then build the assets (bundle, minify, copy...)
-                        if (name === 'script') {
-                            // Scripts
-                            attributes.src = buildAsset(
-                                attributes.src,
-                                buildJS
-                            );
-                        } else if (name === 'link') {
-                            if (attributes.rel === 'stylesheet') {
-                                // Styles
-                                attributes.href = buildAsset(
-                                    attributes.href,
-                                    buildCSS
-                                );
-                            } else if (attributes.rel.includes('icon')) {
-                                // Icons
-                                attributes.href = buildAsset(
-                                    attributes.href,
-                                    buildImg
-                                );
+                        },
+                        onprocessinginstruction(name, data) {
+                            if (name === '!doctype') {
+                                chunks.push(`<${data}>`);
                             }
-                        } else if (name === 'img') {
-                            // Images
-                            attributes.src = buildAsset(
-                                attributes.src,
-                                buildImg
-                            );
                         }
+                    });
+                    
+                    const html = file.contents.toString('utf8');
+                    parser.write(html);
+                    parser.end();
 
-                        // Push the HTML element with updated attributes
-                        const attributesHtml = Object.entries(attributes)
-                            .map(([key, value]) => {
-                                return `${key}="${escape(value)}"`;
-                            })
-                            .join(' ');
+                    file.contents = Buffer.from(chunks.join(''));
 
-                        let elementHtml;
-                        if (attributesHtml) {
-                            elementHtml = `<${name} ${attributesHtml}>`
-                        } else {
-                            elementHtml = `<${name}>`
-                        };
-
-                        chunks.push(elementHtml);
-                    },
-                    ontext(text) {
-                        // Push text
-                        chunks.push(escape(text));
-                    },
-                    onclosetag(name, isImplied) {
-                        if (!isImplied) {
-                            // Push close tags
-                            chunks.push(`</${name}>`);
-                        }
-                    },
-                    onprocessinginstruction(name, data) {
-                        if (name === '!doctype') {
-                            chunks.push(`<${data}>`);
-                        }
-                    }
-                });
-                
-                const html = file.contents.toString('utf8');
-                parser.write(html);
-                parser.end();
-
-                file.contents = Buffer.from(chunks.join(''));
-
-                cb(null, file);
+                    cb(null, file);
+                } catch (err) {
+                    cb(err);
+                }
             }
         }
     )
@@ -313,38 +336,52 @@ function buildall() {
 
 /* ------------------------------------------------ */
 
-/** @return {void} */
+/** 
+ * Clear dist content
+ * @param {Function} cb
+ * @return {void} 
+ */
 const ClearDist = async function(cb) {
     try {
-        await fs.mkdir(PATH_BUILD);
-    } catch {}
-
-    try {
+        await fs.mkdir(PATHS.BUILD, {
+            recursive: true
+        });
+        
         await del([
-            PATH_BUILD + '/**/*'
+            PATHS.BUILD + '/**/*'
         ]);
 
-        await fs.mkdir(PATH_ASSETS);
-    } finally {
+        await fs.mkdir(PATHS.ASSETS, {
+            recursive: true
+        });
+
         await cb();
+    } catch (err) {
+        throw new BuildError(`Failed to clear dist: ${err.message}`);
     }
 }
 
-/** @return {void} */
+/** 
+ * Build html and his assets
+ * @return {void} 
+ */
 const Builder = async function() {
     const isPHPFile = (file) => file.extname === '.php';
 
     return src([
-        PATH_SOURCE + '/**/*.html',
-        PATH_SOURCE + '/**/*.php'
+        PATHS.SOURCE + '/**/*.html',
+        PATHS.SOURCE + '/**/*.php'
     ])
+        .pipe(plumber())
         .pipe(gulpif(isPHPFile, php2html()))
         .pipe(htmlmin({ 
             collapseWhitespace: true,
-            removeComments: true
+            removeComments: true,
+            minifyCSS: true,
+            minifyJS: true
         }))
         .pipe(buildall())
-        .pipe(dest(PATH_BUILD));
+        .pipe(dest(PATHS.BUILD));
 }
 
 /* ------------------------------------------------ */
