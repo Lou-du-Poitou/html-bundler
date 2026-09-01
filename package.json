@@ -16,6 +16,7 @@
     "gulp-htmlmin": "^5.0.1",
     "gulp-if": "^3.0.0",
     "gulp-php2html": "^1.0.1",
+    "gulp-plumber": "^1.2.1",
     "htmlparser2": "^12.0.0"
   }
 }
