@@ -91,7 +91,7 @@ function buildJS(sourcePath) {
                 .substring(0, 8) + '.min.js'
         );
 
-        esbuild.build({
+        esbuild.buildSync({
             entryPoints: [sourcePath],
             bundle: true,
             minify: true,
@@ -101,7 +101,9 @@ function buildJS(sourcePath) {
 
         return buildPath;
     } catch (err) {
-        throw new BuildError(err.message);
+        throw new BuildError(`Failed to build JS: "${sourcePath}"`, {
+            cause: err
+        });
     }
 }
 
@@ -119,7 +121,7 @@ function buildCSS(sourcePath) {
                 .substring(0, 8) + '.min.css'
         );
 
-        esbuild.build({
+        esbuild.buildSync({
             entryPoints: [sourcePath],
             bundle: true,
             minify: true,
@@ -128,7 +130,9 @@ function buildCSS(sourcePath) {
 
         return buildPath;
     } catch (err) {
-        throw new BuildError(err.message);
+        throw new BuildError(`Failed to build CSS: "${sourcePath}"`, {
+            cause: err
+        });
     }
 }
 
@@ -157,7 +161,9 @@ function buildFile(sourcePath) {
 
         return buildPath;
     } catch (err) {
-        throw new BuildError(err.message);
+        throw new BuildError(`Failed to build File: "${sourcePath}"`, {
+            cause: err
+        });
     }
 }
 
@@ -357,7 +363,9 @@ const ClearDist = async function(cb) {
 
         await cb();
     } catch (err) {
-        throw new BuildError(`Failed to clear dist: ${err.message}`);
+        throw new BuildError(`Failed to clear dist: "${PATHS.BUILD}"`, {
+            cause: err
+        });
     }
 }
 
