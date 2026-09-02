@@ -192,6 +192,7 @@ function buildall() {
                     ); // Current file directory
 
                     const chunks = []; // Save html parts
+                    let escapeText = true;
                     
                     /**
                      * Build an asset and return the relative 
@@ -261,15 +262,23 @@ function buildall() {
                             
                     const parser = new Parser({
                         onopentag(name, attributes) {
+                            // To avoid escaping between the script or style tags
+                            if (
+                                name === 'script' ||
+                                name === 'style'
+                            ) {
+                                escapeText = false;
+                            }
+
                             // Find the assets (scripts, styles, images, icons...)
                             // And then build the assets (bundle, minify, copy...)
-                            if (name === 'script') {
+                            if (name === 'script' && attributes.src) {
                                 // Scripts
                                 attributes.src = buildAsset(
                                     attributes.src,
                                     buildJS
                                 );
-                            } else if (name === 'link') {
+                            } else if (name === 'link' && attributes.href) {
                                 if (attributes.rel === 'stylesheet') {
                                     // Styles
                                     attributes.href = buildAsset(
@@ -284,10 +293,12 @@ function buildall() {
                                     );
                                 }
                             } else if (
-                                name === 'img' ||
-                                name === 'source' ||
-                                name === 'video' ||
-                                name === 'audio'
+                                (
+                                    name === 'img' ||
+                                    name === 'source' ||
+                                    name === 'video' ||
+                                    name === 'audio'
+                                ) && attributes.src
                             ) {
                                 // Images, videos, audios...
                                 attributes.src = buildAsset(
@@ -314,9 +325,21 @@ function buildall() {
                         },
                         ontext(text) {
                             // Push text
-                            chunks.push(escape(text));
+                            if (escapeText) {
+                                chunks.push(escape(text));
+                            } else {
+                                chunks.push(text);
+                            }
                         },
                         onclosetag(name, isImplied) {
+                            // Escape text after script or style tags
+                            if (
+                                name === 'script' ||
+                                name === 'style'
+                            ) {
+                                escapeText = true;
+                            }
+
                             if (!isImplied) {
                                 // Push close tags
                                 chunks.push(`</${name}>`);
