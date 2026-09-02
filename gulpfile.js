@@ -205,7 +205,11 @@ function buildall() {
                         source,
                         builder
                     ) {
-                        if (source.startsWith('http')) {
+                        if (
+                            source.startsWith('http://') ||
+                            source.startsWith('https://') ||
+                            source.startsWith('data:')
+                        ) {
                             return source;
                         }
                         
