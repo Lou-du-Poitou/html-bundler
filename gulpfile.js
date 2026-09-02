@@ -408,7 +408,9 @@ const Builder = async function() {
         PATHS.SOURCE + '/**/*.php'
     ])
         .pipe(plumber())
-        .pipe(gulpif(isPHPFile, php2html()))
+        .pipe(gulpif(isPHPFile, php2html({
+            baseDir: PATHS.SOURCE
+        })))
         .pipe(htmlmin({ 
             collapseWhitespace: true,
             removeComments: true,
