@@ -133,13 +133,6 @@ function buildCSS(sourcePath) {
             bundle: true,
             minify: true,
             outfile: buildPath,
-            loader: {
-                '.woff2': 'file',
-                '.woff': 'file',
-                '.ttf': 'file',
-                '.eot': 'file',
-            },
-            assetNames: randomAssetName(),
         });
 
         return buildPath;
