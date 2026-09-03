@@ -77,6 +77,15 @@ class BuildError extends Error {}
 
 /* ------------------------------------------------ */
 
+/**
+ * Return a random asset name
+ * @returns {String}
+ */
+const randomAssetName = function() {
+    return crypto.randomUUID()
+        .substring(0, 8);
+};
+
 /** 
  * Bundle and minify JS file
  * 
@@ -87,8 +96,7 @@ function buildJS(sourcePath) {
     try {
         const buildPath = path.join(
             PATHS.ASSETS,
-            crypto.randomUUID()
-                .substring(0, 8) + '.min.js'
+            randomAssetName() + '.min.js'
         );
 
         esbuild.buildSync({
@@ -117,8 +125,7 @@ function buildCSS(sourcePath) {
     try {
         const buildPath = path.join(
             PATHS.ASSETS,
-            crypto.randomUUID()
-                .substring(0, 8) + '.min.css'
+            randomAssetName() + '.min.css'
         );
 
         esbuild.buildSync({
@@ -126,6 +133,13 @@ function buildCSS(sourcePath) {
             bundle: true,
             minify: true,
             outfile: buildPath,
+            loader: {
+                '.woff2': 'file',
+                '.woff': 'file',
+                '.ttf': 'file',
+                '.eot': 'file',
+            },
+            assetNames: randomAssetName(),
         });
 
         return buildPath;
@@ -150,8 +164,7 @@ function buildFile(sourcePath) {
 
         const buildPath = path.join(
             PATHS.ASSETS,
-            crypto.randomUUID()
-                .substring(0, 8) + '.' + fileExt
+            randomAssetName() + '.' + fileExt
         );
 
         const input = createReadStream(sourcePath);
