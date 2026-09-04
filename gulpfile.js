@@ -81,9 +81,10 @@ class BuildError extends Error {}
  * Return a random asset name
  * @returns {String}
  */
-const randomAssetName = function() {
+const randomAssetName = function(fileExt) {
     return crypto.randomUUID()
-        .substring(0, 8);
+        .substring(0, 8)
+        .concat(fileExt);
 };
 
 /** 
@@ -94,9 +95,12 @@ const randomAssetName = function() {
  */
 function buildJS(sourcePath) {
     try {
+        const fileExt = '.min.js';
+        const fileName = randomAssetName(fileExt);
+
         const buildPath = path.join(
             PATHS.ASSETS,
-            randomAssetName() + '.min.js'
+            fileName
         );
 
         esbuild.buildSync({
@@ -123,9 +127,12 @@ function buildJS(sourcePath) {
  */
 function buildCSS(sourcePath) {
     try {
+        const fileExt = '.min.css';
+        const fileName = randomAssetName(fileExt);
+
         const buildPath = path.join(
             PATHS.ASSETS,
-            randomAssetName() + '.min.css'
+            fileName
         );
 
         esbuild.buildSync({
@@ -152,7 +159,7 @@ function buildCSS(sourcePath) {
 function buildFile(sourcePath) {
     try {
         const fileExt = path.extname(sourcePath);
-        const fileName = randomAssetName() + fileExt;
+        const fileName = randomAssetName(fileExt);
 
         const buildPath = path.join(
             PATHS.ASSETS,
