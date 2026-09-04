@@ -42,9 +42,6 @@ const htmlmin = require('gulp-htmlmin');
 const gulpif = require('gulp-if');
 const plumber = require('gulp-plumber');
 
-// Others
-const del = require('delete');
-
 /** 
  * Builder configuration
  * @property {String} path_source
