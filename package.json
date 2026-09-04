@@ -9,7 +9,6 @@
   "author": "V / Lou du Poitou",
   "license": "ISC",
   "devDependencies": {
-    "delete": "^1.1.0",
     "esbuild": "^0.28.2",
     "escape-html": "^1.0.3",
     "gulp": "^5.0.1",
