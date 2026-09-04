@@ -151,13 +151,12 @@ function buildCSS(sourcePath) {
  */
 function buildFile(sourcePath) {
     try {
-        const fileExt = sourcePath
-            .split('.')
-            .at(-1);
+        const fileExt = path.extname(sourcePath);
+        const fileName = randomAssetName() + fileExt;
 
         const buildPath = path.join(
             PATHS.ASSETS,
-            randomAssetName() + '.' + fileExt
+            fileName
         );
 
         const input = createReadStream(sourcePath);
@@ -386,9 +385,10 @@ const ClearDist = async function(cb) {
             recursive: true
         });
         
-        await del([
-            PATHS.BUILD + '/**/*'
-        ]);
+        await fs.rm(PATHS.BUILD, {
+            recursive: true,
+            force: true
+        });
 
         await fs.mkdir(PATHS.ASSETS, {
             recursive: true
